@@ -7,6 +7,8 @@ import NewArrivals from "@/components/Home/NewArrivals";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001/api/v1";
 
+type SectionData = Banner[] | Category[] | Product[] | Banner | null;
+
 // Types
 interface LayoutSection {
     id: string;
@@ -14,7 +16,7 @@ interface LayoutSection {
     title?: string;
     position?: string;
     categoryId?: string;
-    data?: any;
+    data?: SectionData;
 }
 
 // Fetchers
@@ -129,29 +131,29 @@ export default async function Home() {
 
     return (
         <div className="flex flex-col">
-            {resolvedSections.map((section, index) => {
+            {resolvedSections.map((section) => {
                 switch (section.type) {
                     case "HERO_BANNER":
-                        return <HeroBannerSlider key={section.id} banners={section.data} />;
+                        return <HeroBannerSlider key={section.id} banners={(section.data as Banner[]) ?? []} />;
                         
                     case "FEATURED_CATEGORIES":
-                        return <FeaturedCategories key={section.id} categories={section.data} />;
+                        return <FeaturedCategories key={section.id} categories={(section.data as Category[]) ?? []} />;
                         
                     case "FEATURED_PRODUCTS":
-                        return <FeaturedProducts key={section.id} products={section.data} title={section.title} />;
+                        return <FeaturedProducts key={section.id} products={(section.data as Product[]) ?? []} title={section.title} />;
                         
                     case "NEW_ARRIVALS":
-                        return <NewArrivals key={section.id} products={section.data} />;
+                        return <NewArrivals key={section.id} products={(section.data as Product[]) ?? []} />;
                         
                     case "PROMO_BANNER":
-                        return <PromoBanner key={section.id} banner={section.data} />;
+                        return <PromoBanner key={section.id} banner={(section.data as Banner | null) ?? undefined} />;
                         
                     case "CATEGORY_PRODUCTS":
-                        if (!section.data || section.data.length === 0) return null;
+                        if (!section.data || (section.data as Product[]).length === 0) return null;
                         return (
                             <FeaturedProducts 
                                 key={section.id} 
-                                products={section.data} 
+                                products={(section.data as Product[]) ?? []} 
                                 title={section.title || "Category Collection"} 
                                 subtitle="Specially curated pieces" 
                             />

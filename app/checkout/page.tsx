@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Script from "next/script";
+import { AxiosError } from "axios";
 import { useCartStore } from "../../store/cartStore";
 import { useAuthStore } from "../../store/authStore";
 import ProtectedRoute from "../../components/Layout/ProtectedRoute";
@@ -21,7 +22,6 @@ import {
     Tag,
     Loader2,
     X,
-    ChevronDown,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────
@@ -39,9 +39,64 @@ interface Address {
     isDefault: boolean;
 }
 
+interface ApiErrorResponse {
+    error?: string;
+    message?: string;
+}
+
+interface OrderResponse {
+    data: {
+        id: string;
+        orderNumber: string;
+    };
+}
+
+interface RazorpayOrderPayload {
+    id: string;
+    amount: number;
+    currency: string;
+}
+
+interface PaymentCreateOrderResponse {
+    data: {
+        razorpayOrder: RazorpayOrderPayload;
+    };
+}
+
+interface RazorpaySuccessResponse {
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature: string;
+}
+
+interface RazorpayOptions {
+    key?: string;
+    amount: number;
+    currency: string;
+    name: string;
+    description: string;
+    order_id: string;
+    handler: (response: RazorpaySuccessResponse) => Promise<void> | void;
+    prefill: {
+        name: string;
+        email: string;
+    };
+    theme: {
+        color: string;
+    };
+    modal: {
+        ondismiss: () => void;
+    };
+}
+
+interface RazorpayInstance {
+    on: (event: "payment.failed", callback: () => void) => void;
+    open: () => void;
+}
+
 declare global {
     interface Window {
-        Razorpay: any;
+        Razorpay: new (options: RazorpayOptions) => RazorpayInstance;
     }
 }
 
@@ -152,8 +207,12 @@ export default function CheckoutPage() {
             const data = res.data.data;
             setDiscount(data.discount || 0);
             setCouponApplied(true);
-        } catch (err: any) {
-            setCouponError(err?.response?.data?.message || "Invalid coupon code.");
+        } catch (err) {
+            const errorMessage =
+                (err as AxiosError<ApiErrorResponse>).response?.data?.message ||
+                (err as AxiosError<ApiErrorResponse>).response?.data?.error ||
+                "Invalid coupon code.";
+            setCouponError(errorMessage);
             setDiscount(0);
             setCouponApplied(false);
         }
@@ -179,26 +238,30 @@ export default function CheckoutPage() {
         try {
             // 1. Sync cart to backend
             await api.post("/cart/merge", {
-                items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+                items: items.map((i) => ({
+                    productId: i.productId,
+                    variantId: i.id,
+                    quantity: i.quantity,
+                })),
             });
 
             // 2. Place order
-            const orderRes = await api.post("/orders", { addressId: selectedAddressId });
+            const orderRes = await api.post<OrderResponse>("/orders", { addressId: selectedAddressId });
             const order = orderRes.data.data;
 
             // 3. Create Razorpay order
-            const payRes = await api.post("/payments/create-order", { orderId: order.id });
+            const payRes = await api.post<PaymentCreateOrderResponse>("/payments/create-order", { orderId: order.id });
             const { razorpayOrder } = payRes.data.data;
 
             // 4. Open Razorpay checkout
-            const options = {
+            const options: RazorpayOptions = {
                 key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
                 amount: razorpayOrder.amount,
                 currency: razorpayOrder.currency,
                 name: "Ahi Jewellery",
                 description: `Order #${order.orderNumber}`,
                 order_id: razorpayOrder.id,
-                handler: async function (response: any) {
+                handler: async function (response: RazorpaySuccessResponse) {
                     try {
                         await api.post("/payments/verify", {
                             razorpay_order_id: response.razorpay_order_id,
@@ -228,8 +291,12 @@ export default function CheckoutPage() {
                 router.push(`/order-confirmation?status=failed&orderNumber=${order.orderNumber}`);
             });
             rzp.open();
-        } catch (err: any) {
-            setError(err?.response?.data?.message || "Failed to place order. Please try again.");
+        } catch (err) {
+            const errorMessage =
+                (err as AxiosError<ApiErrorResponse>).response?.data?.message ||
+                (err as AxiosError<ApiErrorResponse>).response?.data?.error ||
+                "Failed to place order. Please try again.";
+            setError(errorMessage);
             setPlacing(false);
         }
     }
