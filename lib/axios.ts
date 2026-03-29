@@ -29,10 +29,13 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
-            // Clear auth storage and redirect to login
             if (typeof window !== "undefined") {
                 localStorage.removeItem("auth-storage");
-                window.location.href = "/login";
+
+                const currentPath = window.location.pathname;
+                if (currentPath.startsWith("/account")) {
+                    window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`;
+                }
             }
         }
         return Promise.reject(error);

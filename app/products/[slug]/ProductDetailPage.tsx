@@ -85,14 +85,14 @@ export default function ProductDetailPage({ product }: ProductDetailPageProps) {
                     Home
                 </Link>
                 <ChevronRight className="w-3.5 h-3.5" />
-                <Link href="/products" className="hover:text-gray-700 transition-colors">
-                    Products
+                <Link href="/collections/all" className="hover:text-gray-700 transition-colors">
+                    Collections
                 </Link>
                 {product.category && (
                     <>
                         <ChevronRight className="w-3.5 h-3.5" />
                         <Link
-                            href={`/products?category=${product.category.slug}`}
+                            href={`/collections/${product.category.slug}`}
                             className="hover:text-gray-700 transition-colors"
                         >
                             {product.category.name}

@@ -42,8 +42,33 @@ interface FeaturedCategoriesProps {
     categories: Category[];
 }
 
+function getCategoryShowcase(categories: Category[]) {
+    if (categories.length === 0) {
+        return {
+            heroCollection: null as Category | null,
+            items: FALLBACK_CATEGORIES,
+        };
+    }
+
+    const heroCollection =
+        categories.length === 1 && categories[0].children && categories[0].children.length > 0
+            ? categories[0]
+            : null;
+
+    const items = heroCollection
+        ? heroCollection.children!.slice(0, 5)
+        : categories.flatMap((category) =>
+              category.children && category.children.length > 0 ? category.children : [category]
+          ).slice(0, 6);
+
+    return {
+        heroCollection,
+        items: items.length > 0 ? items : FALLBACK_CATEGORIES,
+    };
+}
+
 export default function FeaturedCategories({ categories }: FeaturedCategoriesProps) {
-    const items = categories.length > 0 ? categories.slice(0, 6) : FALLBACK_CATEGORIES;
+    const { heroCollection, items } = getCategoryShowcase(categories);
 
     return (
         <section className="py-20 bg-white">
@@ -60,6 +85,69 @@ export default function FeaturedCategories({ categories }: FeaturedCategoriesPro
                         Explore our curated collections of premium jewellery pieces.
                     </p>
                 </div>
+
+                {heroCollection && (
+                    <div className="mb-10 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+                        <Link
+                            href={`/collections/${heroCollection.slug}`}
+                            className="group relative overflow-hidden rounded-[28px] bg-gray-950 min-h-[320px] md:min-h-[420px]"
+                        >
+                            {heroCollection.imageUrl ? (
+                                <Image
+                                    src={heroCollection.imageUrl}
+                                    alt={heroCollection.name}
+                                    fill
+                                    className="object-cover transition-transform duration-700 group-hover:scale-105"
+                                    sizes="(max-width: 1024px) 100vw, 60vw"
+                                />
+                            ) : (
+                                <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-orange-950" />
+                            )}
+                            <div className="absolute inset-0 bg-gradient-to-r from-gray-950/90 via-gray-950/50 to-transparent" />
+                            <div className="relative z-10 flex h-full flex-col justify-end p-8 md:p-10 text-white">
+                                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-orange-400 mb-3">
+                                    Signature Collection
+                                </p>
+                                <h3 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">
+                                    {heroCollection.name}
+                                </h3>
+                                <p className="max-w-lg text-sm md:text-base text-gray-200">
+                                    {heroCollection.description || "Discover the full story behind our hero collection."}
+                                </p>
+                                <span className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-orange-300">
+                                    Explore the collection
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </span>
+                            </div>
+                        </Link>
+
+                        <div className="rounded-[28px] border border-orange-100 bg-orange-50/60 p-6 md:p-8">
+                            <p className="text-sm font-semibold uppercase tracking-[0.25em] text-orange-500 mb-3">
+                                Shop the Edit
+                            </p>
+                            <h3 className="text-2xl font-bold text-gray-900 mb-3">
+                                Browse by Product Type
+                            </h3>
+                            <p className="text-sm text-gray-600 mb-6">
+                                Break the collection into easy-to-shop groups so customers can discover faster from the homepage.
+                            </p>
+                            <div className="space-y-3">
+                                {items.slice(0, 3).map((category) => (
+                                    <Link
+                                        key={category.id}
+                                        href={`/collections/${category.slug}`}
+                                        className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-black/5 transition hover:text-orange-500"
+                                    >
+                                        <span>{category.name}</span>
+                                        <span aria-hidden="true">→</span>
+                                    </Link>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Category Grid */}
                 {items.length === 1 ? (
@@ -91,10 +179,10 @@ export default function FeaturedCategories({ categories }: FeaturedCategoriesPro
                 {/* View All Link */}
                 <div className="text-center mt-10">
                     <Link
-                        href="/collections/all"
+                        href={heroCollection ? `/collections/${heroCollection.slug}` : "/collections/all"}
                         className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 border border-gray-300 rounded-full px-7 py-3 hover:border-orange-500 hover:text-orange-500 transition-colors"
                     >
-                        View All Categories
+                        {heroCollection ? "View Full Collection" : "View All Categories"}
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                         </svg>

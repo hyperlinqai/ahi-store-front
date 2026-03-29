@@ -22,7 +22,18 @@ const FALLBACK_BANNER: Banner = {
 const AUTO_PLAY_INTERVAL = 5000;
 
 export default function HeroBannerSlider({ banners }: { banners: Banner[] }) {
-    const slides = banners.length > 0 ? banners : [FALLBACK_BANNER];
+    const dedupedBanners = banners.filter((banner, index, items) => {
+        const bannerText = `${banner.title ?? ""} ${banner.subtitle ?? ""} ${banner.ctaLink ?? ""}`.toLowerCase();
+        if (!bannerText.includes("padma")) return true;
+
+        const firstPadmaIndex = items.findIndex((item) =>
+            `${item.title ?? ""} ${item.subtitle ?? ""} ${item.ctaLink ?? ""}`.toLowerCase().includes("padma")
+        );
+
+        return index === firstPadmaIndex;
+    });
+
+    const slides = dedupedBanners.length > 0 ? dedupedBanners : [FALLBACK_BANNER];
     const [current, setCurrent] = useState(0);
     const [paused, setPaused] = useState(false);
 

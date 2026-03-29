@@ -16,15 +16,31 @@ import Pagination from "@/components/Products/Pagination";
 
 interface ProductsResponse {
     data: Product[];
-    pagination: {
+    meta: {
         page: number;
         limit: number;
-        total: number;
+        totalCount: number;
         totalPages: number;
     };
 }
 
-export default function ProductsPage() {
+interface ProductsPageProps {
+    eyebrow?: string;
+    title?: string;
+    description?: string;
+    extraApiParams?: Record<string, string>;
+    lockedCategory?: string;
+    hideCategoryFilter?: boolean;
+}
+
+export default function ProductsPage({
+    eyebrow = "Collection",
+    title = "All Products",
+    description = "Discover our exquisite collection of fine jewellery",
+    extraApiParams,
+    lockedCategory,
+    hideCategoryFilter = false,
+}: ProductsPageProps) {
     const [drawerOpen, setDrawerOpen] = useState(false);
 
     const {
@@ -42,11 +58,22 @@ export default function ProductsPage() {
         removeFilter,
     } = useProductFilters();
 
+    const selectedCategory = lockedCategory || filters.category;
+
+    const requestParams: Record<string, string> = {
+        ...apiParams,
+        ...(extraApiParams || {}),
+    };
+
+    if (selectedCategory) {
+        requestParams.category = selectedCategory;
+    }
+
     // Fetch products
     const { data: productsData, isLoading } = useQuery<ProductsResponse>({
-        queryKey: ["products", apiParams],
+        queryKey: ["products", requestParams],
         queryFn: async () => {
-            const res = await api.get("/products", { params: apiParams });
+            const res = await api.get("/products", { params: requestParams });
             return res.data;
         },
     });
@@ -72,7 +99,7 @@ export default function ProductsPage() {
     });
 
     const products = productsData?.data || [];
-    const pagination = productsData?.pagination || { page: 1, limit: 12, total: 0, totalPages: 1 };
+    const pagination = productsData?.meta || { page: 1, limit: 12, totalCount: 0, totalPages: 1 };
     const categories = categoriesData?.data || [];
     const brands = brandsData?.data || [];
 
@@ -80,7 +107,8 @@ export default function ProductsPage() {
         <FilterSidebar
             categories={categories}
             brands={brands}
-            selectedCategory={filters.category}
+            showCategories={!hideCategoryFilter}
+            selectedCategory={selectedCategory}
             minPrice={filters.minPrice}
             maxPrice={filters.maxPrice}
             selectedBrands={filters.brands}
@@ -98,9 +126,12 @@ export default function ProductsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {/* Page Header */}
             <div className="mb-8">
-                <h1 className="text-2xl font-bold text-gray-900">All Products</h1>
+                <p className="text-sm text-orange-500 font-semibold uppercase tracking-[0.25em] mb-2">
+                    {eyebrow}
+                </p>
+                <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
                 <p className="text-sm text-gray-500 mt-1">
-                    Discover our exquisite collection of fine jewellery
+                    {description}
                 </p>
             </div>
 
@@ -133,7 +164,10 @@ export default function ProductsPage() {
                     {/* Active Filter Chips */}
                     {hasActiveFilters && (
                         <ActiveFilters
-                            filters={filters}
+                            filters={{
+                                ...filters,
+                                category: hideCategoryFilter ? "" : filters.category,
+                            }}
                             onRemove={removeFilter}
                             onClearAll={clearAll}
                         />
@@ -143,7 +177,7 @@ export default function ProductsPage() {
                     {isLoading ? (
                         <ProductSkeleton />
                     ) : (
-                        <ProductGrid products={products} total={pagination.total} />
+                        <ProductGrid products={products} total={pagination.totalCount} />
                     )}
 
                     {/* Pagination */}

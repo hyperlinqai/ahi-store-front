@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 interface AuthCardProps {
     title: string;
@@ -12,11 +13,15 @@ export default function AuthCard({ title, subtitle, children, footer }: AuthCard
         <div className="flex min-h-[calc(100vh-200px)] items-center justify-center px-4 py-12">
             <div className="w-full max-w-md">
                 {/* Logo */}
-                <Link href="/" className="block text-center mb-8">
-                    <span className="text-2xl font-bold tracking-tight text-gray-900">
-                        AHI{" "}
-                        <span className="text-orange-500">JEWELLERY</span>
-                    </span>
+                <Link href="/" className="mb-8 flex justify-center">
+                    <Image
+                        src="/ahi-logo.svg"
+                        alt="Ahi Jewellery"
+                        width={265}
+                        height={265}
+                        className="h-[100px] w-auto"
+                        priority
+                    />
                 </Link>
 
                 {/* Card */}

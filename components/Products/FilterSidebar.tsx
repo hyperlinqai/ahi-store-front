@@ -7,6 +7,7 @@ import type { Category } from "@/types";
 interface FilterSidebarProps {
     categories: Category[];
     brands: string[];
+    showCategories?: boolean;
     // Current filter values
     selectedCategory: string;
     minPrice: string;
@@ -185,6 +186,7 @@ function PriceRangeSlider({
 export default function FilterSidebar({
     categories,
     brands,
+    showCategories = true,
     selectedCategory,
     minPrice,
     maxPrice,
@@ -199,19 +201,22 @@ export default function FilterSidebar({
 }: FilterSidebarProps) {
     return (
         <aside className="space-y-6">
-            {/* Categories */}
-            <div>
-                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-3">
-                    Categories
-                </h3>
-                <CategoryTree
-                    categories={categories}
-                    selected={selectedCategory}
-                    onChange={onCategoryChange}
-                />
-            </div>
+            {showCategories && (
+                <>
+                    <div>
+                        <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-3">
+                            Categories
+                        </h3>
+                        <CategoryTree
+                            categories={categories}
+                            selected={selectedCategory}
+                            onChange={onCategoryChange}
+                        />
+                    </div>
 
-            <hr className="border-gray-100" />
+                    <hr className="border-gray-100" />
+                </>
+            )}
 
             {/* Price Range */}
             <div>

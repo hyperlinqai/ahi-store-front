@@ -4,12 +4,18 @@ import "./globals.css";
 import Providers from "../lib/Providers";
 import Header from "../components/Layout/Header";
 import Footer from "../components/Layout/Footer";
+import MobileBottomBar from "../components/Layout/MobileBottomBar";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Ahi Jewellery | Fine Jewelry Store",
   description: "Discover our exclusive collection of elegant, timeless jewelry.",
+  icons: {
+    icon: "/ahi-logo.svg",
+    shortcut: "/ahi-logo.svg",
+    apple: "/ahi-logo.svg",
+  },
 };
 
 export default function RootLayout({
@@ -23,10 +29,11 @@ export default function RootLayout({
         <Providers>
           <div className="flex min-h-screen flex-col bg-white text-gray-900 selection:bg-orange-100 selection:text-orange-900">
             <Header />
-            <main className="flex-1">
+            <main className="flex-1 pb-24 md:pb-0">
               {children}
             </main>
             <Footer />
+            <MobileBottomBar />
           </div>
         </Providers>
       </body>

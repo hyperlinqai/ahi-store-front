@@ -1,16 +1,50 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle, XCircle, Package, ArrowRight, RotateCcw } from "lucide-react";
+import Image from "next/image";
+import { CheckCircle, XCircle, Package, ArrowRight, RotateCcw, ShoppingBag } from "lucide-react";
+
+type ConfirmationItem = {
+    id: string;
+    name: string;
+    quantity: number;
+    price: number;
+    image?: string | null;
+};
+
+type ConfirmationDetails = {
+    orderNumber: string;
+    total: number;
+    itemCount: number;
+    email?: string;
+    items: ConfirmationItem[];
+};
 
 function OrderConfirmationContent() {
     const searchParams = useSearchParams();
     const status = searchParams.get("status"); // "success" | "failed"
     const orderNumber = searchParams.get("orderNumber");
+    const [details, setDetails] = useState<ConfirmationDetails | null>(null);
 
     const isSuccess = status === "success";
+
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+
+        const raw = sessionStorage.getItem("latest-order-confirmation");
+        if (!raw) return;
+
+        try {
+            const parsed = JSON.parse(raw) as ConfirmationDetails;
+            if (!orderNumber || parsed.orderNumber === orderNumber) {
+                setDetails(parsed);
+            }
+        } catch {
+            sessionStorage.removeItem("latest-order-confirmation");
+        }
+    }, [orderNumber]);
 
     return (
         <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8">
@@ -44,6 +78,54 @@ function OrderConfirmationContent() {
                         <Package className="w-4 h-4 text-gray-400" />
                         <span className="text-sm text-gray-500">Order Number:</span>
                         <span className="text-sm font-bold text-gray-900">{orderNumber}</span>
+                    </div>
+                )}
+
+                {isSuccess && details && (
+                    <div className="mt-6 rounded-2xl border border-gray-200 bg-white text-left shadow-sm overflow-hidden">
+                        <div className="border-b border-gray-100 px-5 py-4">
+                            <h2 className="text-sm font-semibold text-gray-900">Order Details</h2>
+                            <p className="mt-1 text-xs text-gray-500">
+                                {details.itemCount} {details.itemCount === 1 ? "item" : "items"}
+                                {details.email ? ` • ${details.email}` : ""}
+                            </p>
+                        </div>
+                        <ul className="divide-y divide-gray-100">
+                            {details.items.map((item) => (
+                                <li key={item.id} className="flex items-center gap-3 px-5 py-4">
+                                    <div className="h-14 w-14 overflow-hidden rounded-xl bg-gray-100 flex-shrink-0">
+                                        {item.image ? (
+                                            <Image
+                                                src={item.image}
+                                                alt={item.name}
+                                                width={56}
+                                                height={56}
+                                                className="h-full w-full object-cover"
+                                            />
+                                        ) : (
+                                            <div className="flex h-full w-full items-center justify-center">
+                                                <ShoppingBag className="h-5 w-5 text-gray-300" />
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-sm font-medium text-gray-900 line-clamp-2">{item.name}</p>
+                                        <p className="mt-1 text-xs text-gray-500">Qty: {item.quantity}</p>
+                                    </div>
+                                    <p className="text-sm font-semibold text-gray-900">
+                                        &#8377;{(item.price * item.quantity).toLocaleString("en-IN")}
+                                    </p>
+                                </li>
+                            ))}
+                        </ul>
+                        <div className="border-t border-gray-100 bg-gray-50 px-5 py-4">
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium text-gray-600">Total Paid</span>
+                                <span className="text-base font-bold text-gray-900">
+                                    &#8377;{details.total.toLocaleString("en-IN")}
+                                </span>
+                            </div>
+                        </div>
                     </div>
                 )}
 

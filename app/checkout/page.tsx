@@ -7,7 +7,6 @@ import Script from "next/script";
 import { AxiosError } from "axios";
 import { useCartStore } from "../../store/cartStore";
 import { useAuthStore } from "../../store/authStore";
-import ProtectedRoute from "../../components/Layout/ProtectedRoute";
 import api from "@/lib/axios";
 import { indianStates } from "@/lib/indianStates";
 import { countriesList } from "@/lib/countries";
@@ -121,11 +120,13 @@ type AddressValues = z.infer<typeof addressSchema>;
 export default function CheckoutPage() {
     const router = useRouter();
     const { items, getCartTotal, clearCart } = useCartStore();
-    const { user } = useAuthStore();
+    const { user, isAuthenticated, logout } = useAuthStore();
 
     const [addresses, setAddresses] = useState<Address[]>([]);
     const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
     const [showAddressForm, setShowAddressForm] = useState(false);
+    const [guestEmail, setGuestEmail] = useState(user?.email || "");
+    const [existingAccountEmail, setExistingAccountEmail] = useState("");
     const [couponCode, setCouponCode] = useState("");
     const [discount, setDiscount] = useState(0);
     const [couponError, setCouponError] = useState("");
@@ -133,6 +134,7 @@ export default function CheckoutPage() {
     const [loading, setLoading] = useState(true);
     const [placing, setPlacing] = useState(false);
     const [error, setError] = useState("");
+    const [isCompletingOrder, setIsCompletingOrder] = useState(false);
 
     const subtotal = getCartTotal();
     const total = Math.max(subtotal - discount, 0);
@@ -150,6 +152,7 @@ export default function CheckoutPage() {
     });
 
     const selectedCountry = watch("country") || "India";
+    const guestAddressPreview = watch();
 
     const fetchAddresses = useCallback(() => {
         api.get("/addresses")
@@ -162,20 +165,34 @@ export default function CheckoutPage() {
                 // Auto-show form if no addresses
                 if (list.length === 0) setShowAddressForm(true);
             })
-            .catch(() => {})
+            .catch((err: AxiosError<ApiErrorResponse>) => {
+                if (err.response?.status === 401) {
+                    logout();
+                    setAddresses([]);
+                    setSelectedAddressId(null);
+                    setShowAddressForm(true);
+                    setError("");
+                }
+            })
             .finally(() => setLoading(false));
-    }, []);
+    }, [logout]);
 
     useEffect(() => {
-        fetchAddresses();
-    }, [fetchAddresses]);
+        if (isAuthenticated) {
+            fetchAddresses();
+            return;
+        }
+
+        setLoading(false);
+        setShowAddressForm(true);
+    }, [fetchAddresses, isAuthenticated]);
 
     // Redirect if cart is empty
     useEffect(() => {
-        if (!loading && items.length === 0) {
+        if (!loading && !isCompletingOrder && items.length === 0) {
             router.push("/cart");
         }
-    }, [loading, items.length, router]);
+    }, [isCompletingOrder, loading, items.length, router]);
 
     // ── Address form ───────────────────────────────────
 
@@ -194,6 +211,59 @@ export default function CheckoutPage() {
         }
     }
 
+    async function openRazorpayCheckout(order: OrderResponse["data"], razorpayOrder: RazorpayOrderPayload, prefill: { name: string; email: string }) {
+        const options: RazorpayOptions = {
+            key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+            amount: razorpayOrder.amount,
+            currency: razorpayOrder.currency,
+            name: "Ahi Jewellery",
+            description: `Order #${order.orderNumber}`,
+            order_id: razorpayOrder.id,
+            handler: async function (response: RazorpaySuccessResponse) {
+                try {
+                    await api.post("/payments/verify", {
+                        razorpay_order_id: response.razorpay_order_id,
+                        razorpay_payment_id: response.razorpay_payment_id,
+                        razorpay_signature: response.razorpay_signature,
+                    });
+                    setIsCompletingOrder(true);
+                    if (typeof window !== "undefined") {
+                        sessionStorage.setItem("latest-order-confirmation", JSON.stringify({
+                            orderNumber: order.orderNumber,
+                            total,
+                            itemCount,
+                            email: prefill.email,
+                            items: items.map((item) => ({
+                                id: item.id,
+                                name: item.name,
+                                quantity: item.quantity,
+                                price: item.price,
+                                image: item.image || null,
+                            })),
+                        }));
+                    }
+                    clearCart();
+                    router.replace(`/order-confirmation?status=success&orderNumber=${order.orderNumber}`);
+                } catch {
+                    router.replace(`/order-confirmation?status=failed&orderNumber=${order.orderNumber}`);
+                }
+            },
+            prefill,
+            theme: { color: "#f97316" },
+            modal: {
+                ondismiss: function () {
+                    setPlacing(false);
+                },
+            },
+        };
+
+        const rzp = new window.Razorpay(options);
+        rzp.on("payment.failed", function () {
+            router.replace(`/order-confirmation?status=failed&orderNumber=${order.orderNumber}`);
+        });
+        rzp.open();
+    }
+
     // ── Coupon ─────────────────────────────────────────
 
     async function applyCoupon() {
@@ -203,6 +273,7 @@ export default function CheckoutPage() {
             const res = await api.post("/coupons/validate", {
                 code: couponCode,
                 subtotal,
+                email: guestEmail.trim() || user?.email || undefined,
             });
             const data = res.data.data;
             setDiscount(data.discount || 0);
@@ -253,49 +324,64 @@ export default function CheckoutPage() {
             const payRes = await api.post<PaymentCreateOrderResponse>("/payments/create-order", { orderId: order.id });
             const { razorpayOrder } = payRes.data.data;
 
-            // 4. Open Razorpay checkout
-            const options: RazorpayOptions = {
-                key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-                amount: razorpayOrder.amount,
-                currency: razorpayOrder.currency,
-                name: "Ahi Jewellery",
-                description: `Order #${order.orderNumber}`,
-                order_id: razorpayOrder.id,
-                handler: async function (response: RazorpaySuccessResponse) {
-                    try {
-                        await api.post("/payments/verify", {
-                            razorpay_order_id: response.razorpay_order_id,
-                            razorpay_payment_id: response.razorpay_payment_id,
-                            razorpay_signature: response.razorpay_signature,
-                        });
-                        clearCart();
-                        router.push(`/order-confirmation?status=success&orderNumber=${order.orderNumber}`);
-                    } catch {
-                        router.push(`/order-confirmation?status=failed&orderNumber=${order.orderNumber}`);
-                    }
-                },
-                prefill: {
-                    name: user?.name || "",
-                    email: user?.email || "",
-                },
-                theme: { color: "#f97316" },
-                modal: {
-                    ondismiss: function () {
-                        setPlacing(false);
-                    },
-                },
-            };
-
-            const rzp = new window.Razorpay(options);
-            rzp.on("payment.failed", function () {
-                router.push(`/order-confirmation?status=failed&orderNumber=${order.orderNumber}`);
+            await openRazorpayCheckout(order, razorpayOrder, {
+                name: user?.name || selectedAddress?.fullName || "",
+                email: user?.email || "",
             });
-            rzp.open();
         } catch (err) {
             const errorMessage =
                 (err as AxiosError<ApiErrorResponse>).response?.data?.message ||
                 (err as AxiosError<ApiErrorResponse>).response?.data?.error ||
                 "Failed to place order. Please try again.";
+            setError(errorMessage);
+            setPlacing(false);
+        }
+    }
+
+    async function handleGuestPlaceOrder(values: AddressValues) {
+        if (!guestEmail.trim()) {
+            setError("Please enter your email address to continue.");
+            return;
+        }
+
+        setError("");
+        setExistingAccountEmail("");
+        setPlacing(true);
+
+        try {
+            const orderRes = await api.post<OrderResponse>("/orders/guest", {
+                email: guestEmail.trim().toLowerCase(),
+                couponCode: couponApplied ? couponCode.trim().toUpperCase() : undefined,
+                items: items.map((item) => ({
+                    productId: item.productId,
+                    variantId: item.id,
+                    quantity: item.quantity,
+                })),
+                address: values,
+            });
+
+            const order = orderRes.data.data;
+
+            const payRes = await api.post<PaymentCreateOrderResponse>("/payments/guest/create-order", {
+                orderId: order.id,
+                email: guestEmail.trim().toLowerCase(),
+            });
+
+            await openRazorpayCheckout(order, payRes.data.data.razorpayOrder, {
+                name: values.fullName,
+                email: guestEmail.trim().toLowerCase(),
+            });
+        } catch (err) {
+            const status = (err as AxiosError<ApiErrorResponse>).response?.status;
+            const errorMessage =
+                (err as AxiosError<ApiErrorResponse>).response?.data?.message ||
+                (err as AxiosError<ApiErrorResponse>).response?.data?.error ||
+                "Failed to place order. Please try again.";
+
+            if (status === 409) {
+                setExistingAccountEmail(guestEmail.trim().toLowerCase());
+            }
+
             setError(errorMessage);
             setPlacing(false);
         }
@@ -309,16 +395,14 @@ export default function CheckoutPage() {
 
     if (loading) {
         return (
-            <ProtectedRoute>
-                <div className="flex items-center justify-center py-32">
-                    <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
-                </div>
-            </ProtectedRoute>
+            <div className="flex items-center justify-center py-32">
+                <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+            </div>
         );
     }
 
     return (
-        <ProtectedRoute>
+        <>
             <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
 
             <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
@@ -332,6 +416,16 @@ export default function CheckoutPage() {
                 {error && (
                     <div className="mb-6 px-4 py-3 bg-red-50 border border-red-100 rounded-xl text-sm text-red-600">
                         {error}
+                        {existingAccountEmail && (
+                            <div className="mt-2">
+                                <button
+                                    onClick={() => router.push(`/login?redirect=/checkout&email=${encodeURIComponent(existingAccountEmail)}`)}
+                                    className="font-semibold text-red-700 underline underline-offset-2"
+                                >
+                                    Log in with {existingAccountEmail}
+                                </button>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -344,9 +438,11 @@ export default function CheckoutPage() {
                             <div className="px-4 py-5 sm:px-6 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <span className="w-6 h-6 rounded-full bg-gray-900 text-white flex items-center justify-center text-xs font-bold">1</span>
-                                    <h3 className="text-base font-semibold text-gray-900">Delivery Address</h3>
+                                    <h3 className="text-base font-semibold text-gray-900">
+                                        {isAuthenticated ? "Delivery Address" : "Contact & Delivery"}
+                                    </h3>
                                 </div>
-                                {addresses.length > 0 && (
+                                {isAuthenticated && addresses.length > 0 && (
                                     <button
                                         onClick={() => setShowAddressForm(!showAddressForm)}
                                         className="flex items-center gap-1.5 text-sm font-medium text-orange-500 hover:text-orange-600 transition-colors"
@@ -359,7 +455,22 @@ export default function CheckoutPage() {
                             {/* Address form — shown if no addresses or user clicks Add New */}
                             {showAddressForm && (
                                 <div className="px-4 py-6 sm:px-6 border-b border-gray-100">
-                                    <form onSubmit={handleSubmit(onAddressSubmit)} className="space-y-4">
+                                    <form onSubmit={handleSubmit(isAuthenticated ? onAddressSubmit : handleGuestPlaceOrder)} className="space-y-4">
+                                        {!isAuthenticated && (
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+                                                <input
+                                                    type="email"
+                                                    value={guestEmail}
+                                                    onChange={(e) => setGuestEmail(e.target.value)}
+                                                    className={inputClass}
+                                                    placeholder="you@example.com"
+                                                />
+                                                <p className="text-xs text-gray-500 mt-1">
+                                                    We&apos;ll only ask you to log in if this email already has an account.
+                                                </p>
+                                            </div>
+                                        )}
                                         <div className="grid grid-cols-2 gap-3">
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Full Name</label>
@@ -417,13 +528,13 @@ export default function CheckoutPage() {
                                         <div className="flex gap-3 pt-1">
                                             <button
                                                 type="submit"
-                                                disabled={formSubmitting}
+                                                disabled={formSubmitting || placing}
                                                 className="flex items-center gap-2 px-6 py-2.5 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-orange-500 transition-colors disabled:opacity-60"
                                             >
-                                                {formSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                                                Save & Use This Address
+                                                {(formSubmitting || placing) && <Loader2 className="w-4 h-4 animate-spin" />}
+                                                {isAuthenticated ? "Save & Use This Address" : "Continue to Payment"}
                                             </button>
-                                            {addresses.length > 0 && (
+                                            {isAuthenticated && addresses.length > 0 && (
                                                 <button type="button" onClick={() => { setShowAddressForm(false); reset(); }} className="px-4 py-2.5 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors">
                                                     Cancel
                                                 </button>
@@ -434,7 +545,7 @@ export default function CheckoutPage() {
                             )}
 
                             {/* Address list */}
-                            {addresses.length > 0 && !showAddressForm && (
+                            {isAuthenticated && addresses.length > 0 && !showAddressForm && (
                                 <ul className="divide-y divide-gray-100">
                                     {addresses.map((addr) => (
                                         <li
@@ -477,7 +588,7 @@ export default function CheckoutPage() {
                                 </ul>
                             )}
 
-                            {addresses.length === 0 && !showAddressForm && (
+                            {isAuthenticated && addresses.length === 0 && !showAddressForm && (
                                 <div className="px-4 py-12 text-center">
                                     <MapPin className="mx-auto h-10 w-10 text-gray-300" strokeWidth={1} />
                                     <p className="mt-3 text-sm text-gray-500">No saved addresses.</p>
@@ -592,7 +703,7 @@ export default function CheckoutPage() {
                             </div>
 
                             {/* Deliver to summary */}
-                            {selectedAddress && !showAddressForm && (
+                            {isAuthenticated && selectedAddress && !showAddressForm && (
                                 <div className="px-4 pb-4 sm:px-6">
                                     <div className="bg-gray-50 rounded-xl px-4 py-3">
                                         <p className="text-xs text-gray-500 mb-1">Delivering to</p>
@@ -607,29 +718,46 @@ export default function CheckoutPage() {
                                 </div>
                             )}
 
+                            {!isAuthenticated && showAddressForm && guestAddressPreview.fullName && guestAddressPreview.addressLine1 && (
+                                <div className="px-4 pb-4 sm:px-6">
+                                    <div className="bg-gray-50 rounded-xl px-4 py-3">
+                                        <p className="text-xs text-gray-500 mb-1">Delivering to</p>
+                                        <p className="text-sm font-medium text-gray-900 mb-1">{guestAddressPreview.fullName}</p>
+                                        <p className="text-xs text-gray-600 font-medium">
+                                            {guestAddressPreview.country || "India"}
+                                        </p>
+                                        <p className="text-xs text-gray-600 mt-0.5">
+                                            {guestAddressPreview.addressLine1}, {guestAddressPreview.city}, {guestAddressPreview.state} - {guestAddressPreview.pincode}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Pay button */}
-                            <div className="px-4 pb-5 sm:px-6">
-                                <button
-                                    onClick={handlePlaceOrder}
-                                    disabled={placing || !selectedAddressId}
-                                    className="w-full flex items-center justify-center gap-2 py-3.5 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-orange-500 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                                >
-                                    {placing ? (
-                                        <>
-                                            <Loader2 className="w-4 h-4 animate-spin" /> Processing...
-                                        </>
-                                    ) : (
-                                        <>Pay &#8377;{total.toLocaleString("en-IN")}</>
+                            {isAuthenticated && (
+                                <div className="px-4 pb-5 sm:px-6">
+                                    <button
+                                        onClick={handlePlaceOrder}
+                                        disabled={placing || !selectedAddressId}
+                                        className="w-full flex items-center justify-center gap-2 py-3.5 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-orange-500 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                    >
+                                        {placing ? (
+                                            <>
+                                                <Loader2 className="w-4 h-4 animate-spin" /> Processing...
+                                            </>
+                                        ) : (
+                                            <>Pay &#8377;{total.toLocaleString("en-IN")}</>
+                                        )}
+                                    </button>
+                                    {!selectedAddressId && addresses.length === 0 && !showAddressForm && (
+                                        <p className="text-xs text-center text-red-500 mt-2">Please add an address to proceed</p>
                                     )}
-                                </button>
-                                {!selectedAddressId && addresses.length === 0 && !showAddressForm && (
-                                    <p className="text-xs text-center text-red-500 mt-2">Please add an address to proceed</p>
-                                )}
-                            </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
             </div>
-        </ProtectedRoute>
+        </>
     );
 }
