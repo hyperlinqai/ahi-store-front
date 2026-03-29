@@ -1,0 +1,262 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { Check, Star, ChevronRight } from "lucide-react";
+import api from "@/lib/axios";
+import type { Product, ProductVariant } from "@/types";
+import { useCartStore } from "@/store/cartStore";
+import ImageGallery from "@/components/Products/ImageGallery";
+import VariantSelector from "@/components/Products/VariantSelector";
+import QuantitySelector from "@/components/Products/QuantitySelector";
+import ProductAccordion from "@/components/Products/ProductAccordion";
+import FeatureBadges from "@/components/Products/FeatureBadges";
+import RelatedProducts from "@/components/Products/RelatedProducts";
+
+function formatPrice(price: number): string {
+    return `₹${price.toLocaleString("en-IN")}`;
+}
+
+interface ProductDetailPageProps {
+    product: Product;
+}
+
+export default function ProductDetailPage({ product }: ProductDetailPageProps) {
+    const [selectedVariant, setSelectedVariant] = useState<ProductVariant>(
+        product.variants[0] ?? ({} as ProductVariant)
+    );
+    const [quantity, setQuantity] = useState(1);
+    const [addedToCart, setAddedToCart] = useState(false);
+    const router = useRouter();
+
+    const addItem = useCartStore((s) => s.addItem);
+
+    // Fetch related products (same category)
+    const { data: relatedData } = useQuery<{ data: Product[] }>({
+        queryKey: ["related-products", product.category?.slug],
+        queryFn: async () => {
+            const res = await api.get("/products", {
+                params: {
+                    category: product.category?.slug,
+                    limit: 8,
+                },
+            });
+            return res.data;
+        },
+        enabled: !!product.category?.slug,
+        staleTime: 5 * 60 * 1000,
+    });
+
+    const relatedProducts = (relatedData?.data || []).filter((p) => p.id !== product.id);
+
+    const inStock = selectedVariant.stock > 0;
+    const lowStock = inStock && selectedVariant.stock <= (selectedVariant.lowStockAlert ?? 5);
+
+    const price = selectedVariant.price ?? product.price;
+    const compareAtPrice = selectedVariant.compareAtPrice ?? product.compareAtPrice;
+    const discount =
+        compareAtPrice && compareAtPrice > price
+            ? Math.round(((compareAtPrice - price) / compareAtPrice) * 100)
+            : null;
+
+    function handleAddToCart() {
+        if (!inStock) return;
+        addItem({
+            id: selectedVariant.id,
+            productId: product.id,
+            name: product.title,
+            price,
+            quantity,
+            image: product.images[0]?.url,
+            color: selectedVariant.color ?? undefined,
+            material: selectedVariant.material ?? undefined,
+        });
+        setAddedToCart(true);
+        router.push("/cart");
+    }
+
+    return (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            {/* Breadcrumb */}
+            <nav className="flex items-center gap-1.5 text-sm text-gray-500 mb-6">
+                <Link href="/" className="hover:text-gray-700 transition-colors">
+                    Home
+                </Link>
+                <ChevronRight className="w-3.5 h-3.5" />
+                <Link href="/products" className="hover:text-gray-700 transition-colors">
+                    Products
+                </Link>
+                {product.category && (
+                    <>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                        <Link
+                            href={`/products?category=${product.category.slug}`}
+                            className="hover:text-gray-700 transition-colors"
+                        >
+                            {product.category.name}
+                        </Link>
+                    </>
+                )}
+                <ChevronRight className="w-3.5 h-3.5" />
+                <span className="text-gray-900 font-medium truncate max-w-[200px]">
+                    {product.title}
+                </span>
+            </nav>
+
+            {/* Top Section: Gallery + Info */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
+                {/* Left: Image Gallery */}
+                <ImageGallery images={product.images} productTitle={product.title} />
+
+                {/* Right: Product Info */}
+                <div className="flex flex-col">
+                    {/* Brand */}
+                    {product.brand && (
+                        <p className="text-xs font-semibold text-orange-500 uppercase tracking-widest mb-1">
+                            {product.brand}
+                        </p>
+                    )}
+
+                    {/* Title */}
+                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight">
+                        {product.title}
+                    </h1>
+
+                    {/* Rating Summary */}
+                    {product.reviewCount > 0 && (
+                        <div className="flex items-center gap-2 mt-3">
+                            <div className="flex items-center gap-0.5">
+                                {Array.from({ length: 5 }).map((_, i) => (
+                                    <Star
+                                        key={i}
+                                        className={`w-4 h-4 ${
+                                            i < Math.round(product.avgRating)
+                                                ? "fill-orange-400 text-orange-400"
+                                                : "fill-gray-200 text-gray-200"
+                                        }`}
+                                    />
+                                ))}
+                            </div>
+                            <span className="text-sm text-gray-500">
+                                {product.avgRating.toFixed(1)} ({product.reviewCount} review
+                                {product.reviewCount !== 1 ? "s" : ""})
+                            </span>
+                        </div>
+                    )}
+
+                    {/* Price */}
+                    <div className="flex items-baseline gap-3 mt-5">
+                        <span className="text-2xl font-bold text-gray-900">
+                            {formatPrice(price)}
+                        </span>
+                        {compareAtPrice && compareAtPrice > price && (
+                            <span className="text-base text-gray-400 line-through">
+                                {formatPrice(compareAtPrice)}
+                            </span>
+                        )}
+                        {discount && (
+                            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-md">
+                                {discount}% OFF
+                            </span>
+                        )}
+                    </div>
+
+                    {/* MRP note */}
+                    <p className="text-xs text-gray-400 mt-1">MRP incl. of all taxes</p>
+
+                    <hr className="my-5 border-gray-100" />
+
+                    {/* Variant Selector */}
+                    <VariantSelector
+                        variants={product.variants}
+                        selectedId={selectedVariant.id}
+                        onSelect={(v) => {
+                            setSelectedVariant(v);
+                            setQuantity(1);
+                        }}
+                    />
+
+                    {/* Stock Status */}
+                    <div className="mb-5">
+                        {inStock ? (
+                            lowStock ? (
+                                <p className="text-sm text-orange-600 font-medium">
+                                    Only {selectedVariant.stock} left in stock
+                                </p>
+                            ) : (
+                                <p className="text-sm text-emerald-600 font-medium flex items-center gap-1">
+                                    <Check className="w-4 h-4" /> In Stock
+                                </p>
+                            )
+                        ) : (
+                            <p className="text-sm text-red-500 font-medium">Out of Stock</p>
+                        )}
+                    </div>
+
+                    {/* Quantity + Actions */}
+                    <div className="flex flex-col gap-4">
+                        {inStock && (
+                            <div className="flex items-center gap-3">
+                                <span className="text-sm font-medium text-gray-700">Qty:</span>
+                                <QuantitySelector
+                                    value={quantity}
+                                    max={selectedVariant.stock}
+                                    onChange={setQuantity}
+                                />
+                            </div>
+                        )}
+
+                        <div className="flex mt-2">
+                            <button
+                                onClick={handleAddToCart}
+                                disabled={!inStock}
+                                className={`w-full flex items-center justify-center gap-2.5 py-4 rounded-sm text-[13px] tracking-widest uppercase font-semibold transition-all ${
+                                    addedToCart
+                                        ? "bg-emerald-500 text-white"
+                                        : inStock
+                                        ? "bg-[#1C1C1C] text-white hover:bg-black"
+                                        : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                }`}
+                            >
+                                {addedToCart ? (
+                                    <>
+                                        <Check className="w-4 h-4" /> Added to Cart
+                                    </>
+                                ) : (
+                                    "BUY IT NOW"
+                                )}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Feature Badges from screenshot */}
+                    <FeatureBadges />
+
+                    {/* Product Accordion */}
+                    <ProductAccordion product={product} />
+
+                    {/* Disclaimer + WhatsApp */}
+                    <div className="mt-4 mb-4 relative pr-[60px] text-sm text-gray-600 italic leading-relaxed">
+                        <p>Since our products are handcrafted, it might have slight irregularities which only adds to its beauty. Due to different display screens of various devices, the product lighting may differ resulting in a slight variation in color.</p>
+                        <a 
+                            href="https://wa.me/1234567890" 
+                            target="_blank" 
+                            rel="noreferrer"
+                            className="absolute right-0 top-1/2 -translate-y-1/2 w-[52px] h-[52px] bg-[#25D366] hover:bg-[#20bd5a] transition-colors rounded-full flex items-center justify-center shadow-[0_4px_12px_rgba(37,211,102,0.4)] cursor-pointer"
+                            aria-label="Chat on WhatsApp"
+                        >
+                            <svg className="w-8 h-8 text-white mx-auto my-auto ml-[3px] mt-[3px]" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.878-.788-1.47-1.761-1.643-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            {/* Related Products */}
+            <RelatedProducts products={relatedProducts} />
+        </div>
+    );
+}
