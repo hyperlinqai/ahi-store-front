@@ -4,20 +4,11 @@ const PROMO_FEATURES = [
     {
         icon: (
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-        ),
-        title: "BIS Hallmarked",
-        desc: "Certified purity on every piece",
-    },
-    {
-        icon: (
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
             </svg>
         ),
         title: "Free Shipping",
-        desc: "On orders above ₹5,000",
+        desc: "On all orders across India",
     },
     {
         icon: (
@@ -25,17 +16,26 @@ const PROMO_FEATURES = [
                 <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
             </svg>
         ),
-        title: "Easy Returns",
-        desc: "30-day hassle-free returns",
+        title: "Hassle Free Exchange",
+        desc: "Easy exchange",
     },
     {
         icon: (
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714a2.25 2.25 0 00.659 1.591L19 14.5M14.25 3.104c.251.023.501.05.75.082M19 14.5l-1.47 4.412a2.25 2.25 0 01-2.133 1.588H8.603a2.25 2.25 0 01-2.133-1.588L5 14.5m14 0H5" />
             </svg>
         ),
-        title: "Secure Payments",
-        desc: "100% safe & encrypted",
+        title: "Nickel Free Jewellery",
+        desc: "Safe & skin-friendly materials",
+    },
+    {
+        icon: (
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+            </svg>
+        ),
+        title: "Secure Payment",
+        desc: "100% safe & encrypted checkout",
     },
 ];
 
@@ -88,23 +88,27 @@ export default function PromoBanner({ banner }: { banner?: Banner }) {
 
                 <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
                     <p className="text-orange-400 text-sm font-semibold uppercase tracking-[0.3em] mb-4">
-                        Limited Time Offer
+                        First Order Offer
                     </p>
                     <h2 className="text-3xl md:text-5xl font-bold text-white tracking-tight mb-4 leading-tight">
                         {banner?.title ? (
                             banner.title
                         ) : (
                             <>
-                                Up to{" "}
-                                <span className="text-orange-400">40% Off</span>
+                                Get{" "}
+                                <span className="text-orange-400">10% Off</span>
                                 <br />
-                                on Select Collections
+                                on Your First Order
                             </>
                         )}
                     </h2>
-                    <p className="text-gray-400 text-base md:text-lg mb-10 max-w-xl mx-auto font-light">
-                        {banner?.subtitle || "Celebrate life's milestones with our exclusive sale. Finest craftsmanship at prices you'll love — for a limited time only."}
+                    <p className="text-gray-400 text-base md:text-lg mb-6 max-w-xl mx-auto font-light">
+                        {banner?.subtitle || "Use coupon code at checkout and enjoy 10% off on your first purchase. Start your jewellery journey with AHI today."}
                     </p>
+                    <div className="mb-10 inline-flex items-center gap-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-6 py-3">
+                        <span className="text-gray-300 text-sm">Use Code:</span>
+                        <span className="text-orange-400 text-lg font-bold tracking-widest">AHIFIRST</span>
+                    </div>
 
                     <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
                         {banner?.ctaLink && banner?.ctaText ? (
@@ -116,13 +120,13 @@ export default function PromoBanner({ banner }: { banner?: Banner }) {
                             </Link>
                         ) : (
                             <Link
-                                href="/collections/sale"
+                                href="/products"
                                 className="rounded-full bg-orange-500 px-9 py-3.5 text-sm font-semibold text-white shadow-lg shadow-orange-900/40 hover:bg-orange-600 active:scale-95 transition-all uppercase tracking-widest"
                             >
-                                Shop the Sale
+                                Shop Now
                             </Link>
                         )}
-                        
+
                         <Link
                             href="/collections/all"
                             className="rounded-full border border-white/20 px-9 py-3.5 text-sm font-semibold text-white hover:bg-white/10 active:scale-95 transition-all uppercase tracking-widest backdrop-blur-sm"

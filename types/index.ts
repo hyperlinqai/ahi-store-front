@@ -50,6 +50,8 @@ export interface ProductImage {
 
 export interface ProductVariant {
     id: string;
+    name: string;
+    value: string;
     sku: string;
     price: number;
     compareAtPrice?: number | null;

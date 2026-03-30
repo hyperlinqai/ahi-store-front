@@ -1,19 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Info, FileText, Diamond, Truck, Plus, Minus } from "lucide-react";
+import { Info, FileText, Diamond, Truck, RefreshCw, Plus, Minus } from "lucide-react";
 import type { Product } from "@/types";
 
 interface ProductAccordionProps {
     product: Product;
 }
 
-function formatWeight(grams: number): string {
-    return grams >= 1000 ? `${(grams / 1000).toFixed(2)} kg` : `${grams} g`;
-}
-
 export default function ProductAccordion({ product }: ProductAccordionProps) {
-    const [openIndex, setOpenIndex] = useState<number | null>(0); // 0 is description, open by default
+    const [openIndex, setOpenIndex] = useState<number | null>(0);
 
     const selectedVariant = product.variants[0];
 
@@ -56,28 +52,10 @@ export default function ProductAccordion({ product }: ProductAccordionProps) {
                                     <td className="py-2 text-gray-900 font-mono text-xs">{selectedVariant.sku}</td>
                                 </tr>
                             )}
-                            {selectedVariant?.material && (
+                            {selectedVariant?.name && (
                                 <tr>
-                                    <td className="py-2 text-gray-500 font-medium">Material</td>
-                                    <td className="py-2 text-gray-900">{selectedVariant.material}</td>
-                                </tr>
-                            )}
-                            {selectedVariant?.color && (
-                                <tr>
-                                    <td className="py-2 text-gray-500 font-medium">Color</td>
-                                    <td className="py-2 text-gray-900">{selectedVariant.color}</td>
-                                </tr>
-                            )}
-                            {selectedVariant?.size && (
-                                <tr>
-                                    <td className="py-2 text-gray-500 font-medium">Size</td>
-                                    <td className="py-2 text-gray-900">{selectedVariant.size}</td>
-                                </tr>
-                            )}
-                            {selectedVariant?.weight != null && (
-                                <tr>
-                                    <td className="py-2 text-gray-500 font-medium">Weight</td>
-                                    <td className="py-2 text-gray-900">{formatWeight(selectedVariant.weight)}</td>
+                                    <td className="py-2 text-gray-500 font-medium">{selectedVariant.name}</td>
+                                    <td className="py-2 text-gray-900">{selectedVariant.value}</td>
                                 </tr>
                             )}
                         </tbody>
@@ -89,9 +67,15 @@ export default function ProductAccordion({ product }: ProductAccordionProps) {
             icon: <Diamond className="w-[18px] h-[18px] stroke-[1.5]" />,
             label: "JEWELLERY CARE",
             content: (
-                <div className="text-sm text-gray-600 space-y-2 pb-4 leading-relaxed">
-                    <p>Keep your pieces shining by avoiding direct contact with perfume and lotions.</p>
-                    <p>Store them in the provided premium packaging when not wearing to prevent oxidation and scratching.</p>
+                <div className="text-sm text-gray-600 pb-4 leading-relaxed">
+                    <p className="mb-3">At AHI, every piece is thoughtfully handcrafted and designed to be cherished. With the right care, your jewellery will retain its beauty for years to come.</p>
+                    <ol className="list-decimal list-inside space-y-2">
+                        <li>Always wear your jewellery last while getting ready. Avoid contact with cosmetics, perfumes, and hairsprays.</li>
+                        <li>Store your pieces in a cool, dry place away from moisture, humidity, and extreme temperatures.</li>
+                        <li>Keep your jewellery in the pouch to protect it from scratches and preserve its shine.</li>
+                        <li>Avoid direct contact with water and remove jewellery before bathing or swimming.</li>
+                        <li>Gently wipe your jewellery with a soft cloth after each use to maintain its finish.</li>
+                    </ol>
                 </div>
             )
         },
@@ -99,19 +83,19 @@ export default function ProductAccordion({ product }: ProductAccordionProps) {
             icon: <Truck className="w-[18px] h-[18px] stroke-[1.5]" />,
             label: "SHIPPING INFO",
             content: (
-                <div className="text-sm text-gray-600 space-y-2 pb-4 leading-relaxed">
-                    <p>Domestic orders are typically delivered within 3-5 business days.</p>
-                    <p>International shipping usually resolves within 7-14 business days depending on customs.</p>
+                <div className="text-sm text-gray-600 space-y-3 pb-4 leading-relaxed">
+                    <p>The product will be dispatched within 5 to 7 business days. This product is not applicable for return, only exchange.</p>
+                    <p>Please note that during festivals, holidays, or unexpected delays, delivery times may be longer than usual. We appreciate your understanding and will do our best to ensure your order arrives as quickly as possible.</p>
                 </div>
             )
         },
         {
-            icon: null,
-            label: "RETURN / EXCHANGE POLICY",
+            icon: <RefreshCw className="w-[18px] h-[18px] stroke-[1.5]" />,
+            label: "RETURN AND EXCHANGE",
             content: (
-                <div className="text-sm text-gray-600 space-y-2 pb-4 leading-relaxed">
-                    <p>We accept returns within 14 days of receipt in original condition and packaging.</p>
-                    <p>Please contact our support for a seamless exchange process.</p>
+                <div className="text-sm text-gray-600 space-y-3 pb-4 leading-relaxed">
+                    <p>This product is eligible for exchange only and is not applicable for return.</p>
+                    <p>Since our products are handcrafted, it might have slight irregularities which only adds to its beauty. Due to different display screens of various devices, the product lighting may differ resulting in a slight variation in color.</p>
                 </div>
             )
         }
