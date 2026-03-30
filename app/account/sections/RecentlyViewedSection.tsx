@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { cloudinaryUrl } from "@/lib/cloudinaryUrl";
 import { Clock } from "lucide-react";
 
 interface ViewedProduct {
@@ -43,7 +44,7 @@ export default function RecentlyViewedSection() {
                         >
                             <div className="aspect-square rounded-xl overflow-hidden bg-gray-100 mb-2">
                                 <Image
-                                    src={product.image}
+                                    src={cloudinaryUrl(product.image, { width: 400 })}
                                     alt={product.title}
                                     width={200}
                                     height={200}

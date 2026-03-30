@@ -77,9 +77,9 @@ export default function Header() {
                 <div className="flex justify-center lg:justify-start flex-1 lg:flex-none">
                     <Link href="/" className="flex items-center">
                         <img
-                            src="/ahi-logo.svg"
+                            src="/ahi-logo.png"
                             alt="Ahi Jewellery"
-                            className="h-[48px] w-auto sm:h-[68px]"
+                            className="h-[58px] w-auto sm:h-[68px]"
                         />
                     </Link>
                 </div>

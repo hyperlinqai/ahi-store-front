@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { cloudinaryUrl } from "@/lib/cloudinaryUrl";
 import { CheckCircle, XCircle, Package, ArrowRight, RotateCcw, ShoppingBag } from "lucide-react";
 
 type ConfirmationItem = {
@@ -96,7 +97,7 @@ function OrderConfirmationContent() {
                                     <div className="h-14 w-14 overflow-hidden rounded-xl bg-gray-100 flex-shrink-0">
                                         {item.image ? (
                                             <Image
-                                                src={item.image}
+                                                src={cloudinaryUrl(item.image, { width: 112 })}
                                                 alt={item.name}
                                                 width={56}
                                                 height={56}

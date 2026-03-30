@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback } from "react";
 import Image from "next/image";
 import { ImageOff } from "lucide-react";
+import { cloudinaryUrl, blurUrl } from "@/lib/cloudinaryUrl";
 import type { ProductImage } from "@/types";
 
 interface ImageGalleryProps {
@@ -50,7 +51,7 @@ export default function ImageGallery({ images, productTitle }: ImageGalleryProps
             >
                 {activeImage && (
                     <Image
-                        src={activeImage.url}
+                        src={cloudinaryUrl(activeImage.url, { width: 1200 })}
                         alt={activeImage.altText || productTitle}
                         fill
                         priority
@@ -64,6 +65,8 @@ export default function ImageGallery({ images, productTitle }: ImageGalleryProps
                                 : undefined
                         }
                         sizes="(max-width: 768px) 100vw, 50vw"
+                        placeholder={blurUrl(activeImage.url) ? "blur" : "empty"}
+                        blurDataURL={blurUrl(activeImage.url) || undefined}
                     />
                 )}
             </div>
@@ -82,11 +85,12 @@ export default function ImageGallery({ images, productTitle }: ImageGalleryProps
                             }`}
                         >
                             <Image
-                                src={img.url}
+                                src={cloudinaryUrl(img.url, { width: 160 })}
                                 alt={img.altText || `${productTitle} ${i + 1}`}
                                 fill
                                 className="object-cover"
                                 sizes="80px"
+                                loading="lazy"
                             />
                         </button>
                     ))}

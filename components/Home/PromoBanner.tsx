@@ -1,4 +1,6 @@
+import Image from "next/image";
 import Link from "next/link";
+import { cloudinaryUrl, blurUrl } from "@/lib/cloudinaryUrl";
 
 const PROMO_FEATURES = [
     {
@@ -65,7 +67,16 @@ export default function PromoBanner({ banner }: { banner?: Banner }) {
             <section className="relative overflow-hidden bg-gray-950 py-20 md:py-28 group">
                 {banner?.imageUrl ? (
                     <div className="absolute inset-0 z-0">
-                        <img src={banner.imageUrl} alt={banner.title || "Promo"} className="w-full h-full object-cover transition-transform duration-[20s] ease-linear group-hover:scale-105" />
+                        <Image
+                            src={cloudinaryUrl(banner.imageUrl, { width: 1920 })}
+                            alt={banner.title || "Promo"}
+                            fill
+                            className="object-cover transition-transform duration-[20s] ease-linear group-hover:scale-105"
+                            sizes="100vw"
+                            loading="lazy"
+                            placeholder={blurUrl(banner.imageUrl) ? "blur" : "empty"}
+                            blurDataURL={blurUrl(banner.imageUrl) || undefined}
+                        />
                         <div className="absolute inset-0 bg-gray-950/70" />
                     </div>
                 ) : (

@@ -3,6 +3,7 @@
 import { useCartStore, CartItem } from "../../store/cartStore";
 import Image from "next/image";
 import Link from "next/link";
+import { cloudinaryUrl } from "@/lib/cloudinaryUrl";
 import { Minus, Plus, Trash2, ShoppingBag, ArrowRight } from "lucide-react";
 
 function CartItemRow({ item }: { item: CartItem }) {
@@ -14,7 +15,7 @@ function CartItemRow({ item }: { item: CartItem }) {
             <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
                 {item.image ? (
                     <Image
-                        src={item.image}
+                        src={cloudinaryUrl(item.image, { width: 192 })}
                         alt={item.name}
                         width={96}
                         height={96}

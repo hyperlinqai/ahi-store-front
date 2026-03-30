@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { cloudinaryUrl, blurUrl } from "@/lib/cloudinaryUrl";
 import type { Banner } from "@/types";
 
 const FALLBACK_BANNER: Banner = {
@@ -70,12 +71,15 @@ export default function HeroBannerSlider({ banners }: { banners: Banner[] }) {
                     aria-hidden={i !== current}
                 >
                     <Image
-                        src={s.imageUrl}
+                        src={cloudinaryUrl(s.imageUrl, { width: 1920 })}
                         alt={s.title}
                         fill
                         priority={i === 0}
+                        loading={i === 0 ? "eager" : "lazy"}
                         className="object-cover object-top"
                         sizes="100vw"
+                        placeholder={blurUrl(s.imageUrl) ? "blur" : "empty"}
+                        blurDataURL={blurUrl(s.imageUrl) || undefined}
                     />
                     {/* Multi-layer gradient for depth */}
                     {hasText && (

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ShoppingBag, Star, Check, ImageOff } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
+import { cloudinaryUrl, blurUrl } from "@/lib/cloudinaryUrl";
 import type { Product } from "@/types";
 
 function formatPrice(price: number): string {
@@ -70,21 +71,24 @@ export default function ProductCard({ product }: { product: Product }) {
                 {mainImage ? (
                     <>
                         <Image
-                            src={mainImage}
+                            src={cloudinaryUrl(mainImage, { width: 600 })}
                             alt={product.title}
                             fill
                             className={`object-cover transition-all duration-500 group-hover:scale-105 ${
                                 hoverImage ? "group-hover:opacity-0" : ""
                             }`}
                             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                            placeholder={blurUrl(mainImage) ? "blur" : "empty"}
+                            blurDataURL={blurUrl(mainImage) || undefined}
                         />
                         {hoverImage && (
                             <Image
-                                src={hoverImage}
+                                src={cloudinaryUrl(hoverImage, { width: 600 })}
                                 alt={product.title}
                                 fill
                                 className="object-cover absolute inset-0 opacity-0 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
                                 sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                                loading="lazy"
                             />
                         )}
                     </>

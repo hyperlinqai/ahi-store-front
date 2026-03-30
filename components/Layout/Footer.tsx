@@ -77,9 +77,9 @@ export default function Footer() {
                     <div className="space-y-8 xl:col-span-1">
                         <Link href="/" className="inline-flex">
                             <img
-                                src="/ahi-logo.svg"
+                                src="/ahi-logo.png"
                                 alt="Ahi Jewellery"
-                                className="h-[64px] w-auto sm:h-[88px]"
+                                className="h-[77px] w-auto sm:h-[88px]"
                             />
                         </Link>
                         <p className="text-sm text-gray-500 leading-6">

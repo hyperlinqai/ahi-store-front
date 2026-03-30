@@ -8,6 +8,7 @@ import { AxiosError } from "axios";
 import { useCartStore } from "../../store/cartStore";
 import { useAuthStore } from "../../store/authStore";
 import api from "@/lib/axios";
+import { cloudinaryUrl } from "@/lib/cloudinaryUrl";
 import { indianStates } from "@/lib/indianStates";
 import { countriesList } from "@/lib/countries";
 import { useForm } from "react-hook-form";
@@ -662,7 +663,7 @@ export default function CheckoutPage() {
                                     <li key={item.id} className="flex gap-3 px-4 py-3 sm:px-6">
                                         <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
                                             {item.image ? (
-                                                <Image src={item.image} alt={item.name} width={48} height={48} className="w-full h-full object-cover" />
+                                                <Image src={cloudinaryUrl(item.image, { width: 96 })} alt={item.name} width={48} height={48} className="w-full h-full object-cover" />
                                             ) : (
                                                 <div className="w-full h-full flex items-center justify-center">
                                                     <ShoppingBag className="w-4 h-4 text-gray-300" />

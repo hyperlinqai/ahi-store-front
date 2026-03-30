@@ -14,9 +14,9 @@ export default function AuthCard({ title, subtitle, children, footer }: AuthCard
                 {/* Logo */}
                 <Link href="/" className="mb-8 flex justify-center">
                     <img
-                        src="/ahi-logo.svg"
+                        src="/ahi-logo.png"
                         alt="Ahi Jewellery"
-                        className="h-[100px] w-auto"
+                        className="h-[120px] w-auto"
                     />
                 </Link>
 

@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { cloudinaryUrl, blurUrl } from "@/lib/cloudinaryUrl";
 import type { Category } from "@/types";
 
 // Used when API returns no categories
@@ -94,11 +95,13 @@ export default function FeaturedCategories({ categories }: FeaturedCategoriesPro
                         >
                             {heroCollection.imageUrl ? (
                                 <Image
-                                    src={heroCollection.imageUrl}
+                                    src={cloudinaryUrl(heroCollection.imageUrl, { width: 1200 })}
                                     alt={heroCollection.name}
                                     fill
                                     className="object-cover transition-transform duration-700 group-hover:scale-105"
                                     sizes="(max-width: 1024px) 100vw, 60vw"
+                                    placeholder={blurUrl(heroCollection.imageUrl) ? "blur" : "empty"}
+                                    blurDataURL={blurUrl(heroCollection.imageUrl) || undefined}
                                 />
                             ) : (
                                 <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-orange-950" />
@@ -216,11 +219,14 @@ function CategoryCard({
             {/* Background Image */}
             {category.imageUrl ? (
                 <Image
-                    src={category.imageUrl}
+                    src={cloudinaryUrl(category.imageUrl, { width: 800 })}
                     alt={category.name}
                     fill
                     className="object-cover transition-transform duration-700 group-hover:scale-105"
                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    placeholder={blurUrl(category.imageUrl) ? "blur" : "empty"}
+                    blurDataURL={blurUrl(category.imageUrl) || undefined}
+                    loading="lazy"
                 />
             ) : (
                 <div className="absolute inset-0 bg-gradient-to-br from-orange-100 via-orange-50 to-amber-50" />
