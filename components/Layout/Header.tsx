@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { Search, ShoppingBag, User, Menu } from "lucide-react";
 import { useCartStore } from "../../store/cartStore";
 import { useEffect, useState } from "react";
@@ -77,13 +76,10 @@ export default function Header() {
                 {/* Logo */}
                 <div className="flex justify-center lg:justify-start flex-1 lg:flex-none">
                     <Link href="/" className="flex items-center">
-                        <Image
+                        <img
                             src="/ahi-logo.svg"
                             alt="Ahi Jewellery"
-                            width={203}
-                            height={203}
                             className="h-[48px] w-auto sm:h-[68px]"
-                            priority
                         />
                     </Link>
                 </div>

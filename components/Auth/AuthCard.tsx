@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 
 interface AuthCardProps {
     title: string;
@@ -14,13 +13,10 @@ export default function AuthCard({ title, subtitle, children, footer }: AuthCard
             <div className="w-full max-w-md">
                 {/* Logo */}
                 <Link href="/" className="mb-8 flex justify-center">
-                    <Image
+                    <img
                         src="/ahi-logo.svg"
                         alt="Ahi Jewellery"
-                        width={265}
-                        height={265}
                         className="h-[100px] w-auto"
-                        priority
                     />
                 </Link>
 

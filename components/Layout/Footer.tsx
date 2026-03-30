@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useEffect, useState } from "react";
 import type { Category } from "@/types";
 
@@ -77,11 +76,9 @@ export default function Footer() {
                 <div className="xl:grid xl:grid-cols-3 xl:gap-8">
                     <div className="space-y-8 xl:col-span-1">
                         <Link href="/" className="inline-flex">
-                            <Image
+                            <img
                                 src="/ahi-logo.svg"
                                 alt="Ahi Jewellery"
-                                width={250}
-                                height={250}
                                 className="h-[64px] w-auto sm:h-[88px]"
                             />
                         </Link>
