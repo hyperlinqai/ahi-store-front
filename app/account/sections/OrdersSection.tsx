@@ -37,7 +37,7 @@ export default function OrdersSection() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        api.get("/orders/my")
+        api.get("/orders/my-orders")
             .then((res) => setOrders(res.data.data || []))
             .catch(() => {})
             .finally(() => setLoading(false));
