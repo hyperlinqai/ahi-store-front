@@ -61,7 +61,7 @@ export default function ProductDetailPage({ product }: ProductDetailPageProps) {
             ? Math.round(((compareAtPrice - price) / compareAtPrice) * 100)
             : null;
 
-    function handleAddToCart() {
+    function addSelectedItem() {
         if (!inStock) return;
         addItem({
             id: selectedVariant.id,
@@ -74,7 +74,16 @@ export default function ProductDetailPage({ product }: ProductDetailPageProps) {
             material: selectedVariant.material ?? undefined,
         });
         setAddedToCart(true);
-        router.push("/cart");
+    }
+
+    function handleAddToCart() {
+        addSelectedItem();
+    }
+
+    function handleBuyNow() {
+        if (!inStock) return;
+        addSelectedItem();
+        router.push("/checkout");
     }
 
     return (
@@ -175,6 +184,7 @@ export default function ProductDetailPage({ product }: ProductDetailPageProps) {
                         onSelect={(v) => {
                             setSelectedVariant(v);
                             setQuantity(1);
+                            setAddedToCart(false);
                         }}
                     />
 
@@ -203,21 +213,24 @@ export default function ProductDetailPage({ product }: ProductDetailPageProps) {
                                 <QuantitySelector
                                     value={quantity}
                                     max={selectedVariant.stock}
-                                    onChange={setQuantity}
+                                    onChange={(value) => {
+                                        setQuantity(value);
+                                        setAddedToCart(false);
+                                    }}
                                 />
                             </div>
                         )}
 
-                        <div className="flex mt-2">
+                        <div className="mt-2 flex flex-col gap-3 sm:flex-row">
                             <button
                                 onClick={handleAddToCart}
                                 disabled={!inStock}
-                                className={`w-full flex items-center justify-center gap-2.5 py-4 rounded-sm text-[13px] tracking-widest uppercase font-semibold transition-all ${
+                                className={`w-full flex items-center justify-center gap-2.5 py-4 rounded-sm border text-[13px] tracking-widest uppercase font-semibold transition-all ${
                                     addedToCart
-                                        ? "bg-emerald-500 text-white"
+                                        ? "border-emerald-500 bg-emerald-500 text-white"
                                         : inStock
-                                        ? "bg-[#1C1C1C] text-white hover:bg-black"
-                                        : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                        ? "border-[#1C1C1C] text-[#1C1C1C] hover:bg-[#1C1C1C] hover:text-white"
+                                        : "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
                                 }`}
                             >
                                 {addedToCart ? (
@@ -225,8 +238,19 @@ export default function ProductDetailPage({ product }: ProductDetailPageProps) {
                                         <Check className="w-4 h-4" /> Added to Cart
                                     </>
                                 ) : (
-                                    "BUY IT NOW"
+                                    "ADD TO CART"
                                 )}
+                            </button>
+                            <button
+                                onClick={handleBuyNow}
+                                disabled={!inStock}
+                                className={`w-full flex items-center justify-center gap-2.5 py-4 rounded-sm text-[13px] tracking-widest uppercase font-semibold transition-all ${
+                                    inStock
+                                        ? "bg-[#1C1C1C] text-white hover:bg-black"
+                                        : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                }`}
+                            >
+                                BUY IT NOW
                             </button>
                         </div>
                     </div>
