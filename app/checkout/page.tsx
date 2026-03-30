@@ -167,7 +167,7 @@ export default function CheckoutPage() {
 
     const subtotal = getCartTotal();
     const isCod = paymentMethod === "COD";
-    const codCharge = isCod ? checkoutSettings.shipping.codExtraCharge : 0;
+    const codCharge = (isCod && checkoutSettings) ? checkoutSettings.shipping.codExtraCharge : 0;
     const total = Math.max(subtotal - discount, 0) + codCharge;
     const itemCount = items.reduce((s, i) => s + i.quantity, 0);
 
