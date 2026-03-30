@@ -166,7 +166,9 @@ export default function CheckoutPage() {
     });
 
     const subtotal = getCartTotal();
-    const total = Math.max(subtotal - discount, 0);
+    const isCod = paymentMethod === "COD";
+    const codCharge = isCod ? checkoutSettings.shipping.codExtraCharge : 0;
+    const total = Math.max(subtotal - discount, 0) + codCharge;
     const itemCount = items.reduce((s, i) => s + i.quantity, 0);
 
     const {
@@ -807,8 +809,14 @@ export default function CheckoutPage() {
                                     </span>
                                 </div>
                                 <div className="flex items-center justify-between text-sm">
-                                    <span className="text-gray-500">Shipping</span>
-                                    <span className="font-medium text-emerald-600">Free</span>
+                                    <span className="text-gray-500">Shipping {codCharge > 0 && "(COD)"}</span>
+                                    {codCharge > 0 ? (
+                                        <div className="flex flex-col items-end">
+                                            <span className="font-medium text-gray-900">&#8377;{codCharge.toLocaleString("en-IN")}</span>
+                                        </div>
+                                    ) : (
+                                        <span className="font-medium text-emerald-600">Free</span>
+                                    )}
                                 </div>
                                 <div className="border-t border-gray-100 pt-3 flex items-center justify-between">
                                     <span className="text-base font-semibold text-gray-900">Total</span>
