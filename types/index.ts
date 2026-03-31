@@ -72,6 +72,15 @@ export interface Product {
     compareAtPrice?: number | null;
     brand?: string | null;
     isFeatured?: boolean;
+    weight?: number | null;
+    length?: number | null;
+    width?: number | null;
+    height?: number | null;
+    material?: string | null;
+    features?: string | null;
+    careInstructions?: string | null;
+    shippingInfo?: string | null;
+    returnPolicy?: string | null;
     images: ProductImage[];
     category?: { name: string; slug: string } | null;
     variants: ProductVariant[];
