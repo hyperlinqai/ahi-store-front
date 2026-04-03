@@ -14,6 +14,7 @@ import { countriesList } from "@/lib/countries";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import {
     MapPin,
     Plus,
@@ -69,12 +70,18 @@ interface CheckoutSettingsResponse {
     data: {
         payment: {
             codEnabled: boolean;
+            paypalEnabled: boolean;
             walletEnabled: boolean;
         };
         shipping: {
             defaultCharge: number;
             freeThreshold: number;
             codExtraCharge: number;
+        };
+        transactionCharges: {
+            codCharge: number;
+            razorpayCharge: number;
+            paypalCharge: number;
         };
     };
 }
@@ -152,10 +159,13 @@ export default function CheckoutPage() {
     const [placing, setPlacing] = useState(false);
     const [error, setError] = useState("");
     const [isCompletingOrder, setIsCompletingOrder] = useState(false);
-    const [paymentMethod, setPaymentMethod] = useState<"ONLINE" | "COD">("ONLINE");
+    const [paymentMethod, setPaymentMethod] = useState<"ONLINE" | "PAYPAL" | "COD">("ONLINE");
+    const [isPayPalAuthorizing, setIsPayPalAuthorizing] = useState(false);
+    const [placedOrderId, setPlacedOrderId] = useState<string | null>(null);
     const [checkoutSettings, setCheckoutSettings] = useState<CheckoutSettingsResponse["data"]>({
         payment: {
             codEnabled: true,
+            paypalEnabled: false,
             walletEnabled: true,
         },
         shipping: {
@@ -163,12 +173,21 @@ export default function CheckoutPage() {
             freeThreshold: 0,
             codExtraCharge: 0,
         },
+        transactionCharges: {
+            codCharge: 0,
+            razorpayCharge: 0,
+            paypalCharge: 0,
+        },
     });
 
     const subtotal = getCartTotal();
-    const isCod = paymentMethod === "COD";
-    const codCharge = (isCod && checkoutSettings) ? checkoutSettings.shipping.codExtraCharge : 0;
-    const total = Math.max(subtotal - discount, 0) + codCharge;
+    const transactionCharge =
+        paymentMethod === "COD"
+            ? (checkoutSettings.transactionCharges?.codCharge ?? checkoutSettings.shipping.codExtraCharge ?? 0)
+            : paymentMethod === "PAYPAL"
+            ? (checkoutSettings.transactionCharges?.paypalCharge ?? 0)
+            : (checkoutSettings.transactionCharges?.razorpayCharge ?? 0);
+    const total = Math.max(subtotal - discount, 0) + transactionCharge;
     const itemCount = items.reduce((s, i) => s + i.quantity, 0);
 
     const {
@@ -223,7 +242,10 @@ export default function CheckoutPage() {
             .then((res) => {
                 const nextSettings = res.data.data;
                 setCheckoutSettings(nextSettings);
-                if (!nextSettings.payment.codEnabled) {
+                if (!nextSettings.payment.codEnabled && paymentMethod === "COD") {
+                    setPaymentMethod("ONLINE");
+                }
+                if (!nextSettings.payment.paypalEnabled && paymentMethod === "PAYPAL") {
                     setPaymentMethod("ONLINE");
                 }
             })
@@ -231,12 +253,18 @@ export default function CheckoutPage() {
                 setCheckoutSettings({
                     payment: {
                         codEnabled: true,
+                        paypalEnabled: false,
                         walletEnabled: true,
                     },
                     shipping: {
                         defaultCharge: 0,
                         freeThreshold: 0,
                         codExtraCharge: 0,
+                    },
+                    transactionCharges: {
+                        codCharge: 0,
+                        razorpayCharge: 0,
+                        paypalCharge: 0,
                     },
                 });
             });
@@ -374,53 +402,62 @@ export default function CheckoutPage() {
 
     // ── Place Order & Pay ──────────────────────────────
 
-    async function handlePlaceOrder() {
-        if (!selectedAddressId) {
-            setError("Please add and select a delivery address.");
-            return;
-        }
-        setError("");
-        setPlacing(true);
+async function handlePlaceOrder() {
+         if (!selectedAddressId) {
+             setError("Please add and select a delivery address.");
+             return;
+         }
+         setError("");
+         setPlacing(true);
 
-        try {
-            // 1. Sync cart to backend
-            await api.post("/cart/merge", {
-                items: items.map((i) => ({
-                    productId: i.productId,
-                    variantId: i.id,
-                    quantity: i.quantity,
-                })),
-            });
+         try {
+             // 1. Sync cart to backend
+             await api.post("/cart/merge", {
+                 items: items.map((i) => ({
+                     productId: i.productId,
+                     variantId: i.id,
+                     quantity: i.quantity,
+                 })),
+             });
 
-            // 2. Place order
-            const orderRes = await api.post<OrderResponse>("/orders", {
-                addressId: selectedAddressId,
-                paymentMethod,
-            });
-            const order = orderRes.data.data;
+             // 2. Place order
+             const orderRes = await api.post<OrderResponse>("/orders", {
+                 addressId: selectedAddressId,
+                 paymentMethod,
+             });
+             const order = orderRes.data.data;
 
-            if (paymentMethod === "COD") {
-                completeSuccessfulOrder(order, user?.email || "");
-                return;
-            }
+             if (paymentMethod === "COD") {
+                 completeSuccessfulOrder(order, user?.email || "");
+                 return;
+             }
 
-            // 3. Create Razorpay order
-            const payRes = await api.post<PaymentCreateOrderResponse>("/payments/create-order", { orderId: order.id });
-            const { razorpayOrder } = payRes.data.data;
+             if (paymentMethod === "PAYPAL") {
+                 // For PayPal, we'll handle the payment on the frontend
+                 // and then verify the order completion
+                 // Store the order ID for later verification
+                 setPlacedOrderId(order.id);
+                 setPlacing(false);
+                 return;
+             }
 
-            await openRazorpayCheckout(order, razorpayOrder, {
-                name: user?.name || selectedAddress?.fullName || "",
-                email: user?.email || "",
-            });
-        } catch (err) {
-            const errorMessage =
-                (err as AxiosError<ApiErrorResponse>).response?.data?.message ||
-                (err as AxiosError<ApiErrorResponse>).response?.data?.error ||
-                "Failed to place order. Please try again.";
-            setError(errorMessage);
-            setPlacing(false);
-        }
-    }
+             // 3. Create Razorpay order
+             const payRes = await api.post<PaymentCreateOrderResponse>("/payments/create-order", { orderId: order.id });
+             const { razorpayOrder } = payRes.data.data;
+
+             await openRazorpayCheckout(order, razorpayOrder, {
+                 name: user?.name || selectedAddress?.fullName || "",
+                 email: user?.email || "",
+             });
+         } catch (err) {
+             const errorMessage =
+                 (err as AxiosError<ApiErrorResponse>).response?.data?.message ||
+                 (err as AxiosError<ApiErrorResponse>).response?.data?.error ||
+                 "Failed to place order. Please try again.";
+             setError(errorMessage);
+             setPlacing(false);
+         }
+     }
 
     async function handleGuestPlaceOrder(values: AddressValues) {
         if (!guestEmail.trim()) {
@@ -449,6 +486,12 @@ export default function CheckoutPage() {
 
             if (paymentMethod === "COD") {
                 completeSuccessfulOrder(order, guestEmail.trim().toLowerCase());
+                return;
+            }
+
+            if (paymentMethod === "PAYPAL") {
+                setPlacedOrderId(order.id);
+                setPlacing(false);
                 return;
             }
 
@@ -726,30 +769,53 @@ export default function CheckoutPage() {
                                     </div>
                                 </button>
 
-                                {checkoutSettings.payment.codEnabled && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setPaymentMethod("COD")}
-                                        className={`w-full rounded-xl border px-4 py-3 text-left transition-colors ${
-                                            paymentMethod === "COD"
-                                                ? "border-orange-500 bg-orange-50"
-                                                : "border-gray-200 hover:border-gray-300"
-                                        }`}
-                                    >
-                                        <div className="flex items-start gap-3">
-                                            <div className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                                                paymentMethod === "COD" ? "border-orange-500 bg-orange-500" : "border-gray-300"
-                                            }`}>
-                                                {paymentMethod === "COD" && <Check className="w-3 h-3 text-white" />}
-                                            </div>
-                                            <div className="flex-1">
-                                                <p className="text-sm font-semibold text-gray-900">Cash on Delivery</p>
-                                                <p className="text-xs text-gray-500 mt-0.5">Place the order now and pay when it arrives.</p>
-                                            </div>
-                                            <Banknote className="w-4 h-4 text-gray-400" />
-                                        </div>
-                                    </button>
-                                )}
+{checkoutSettings.payment.codEnabled && (
+                                     <button
+                                         type="button"
+                                         onClick={() => setPaymentMethod("COD")}
+                                         className={`w-full rounded-xl border px-4 py-3 text-left transition-colors ${
+                                             paymentMethod === "COD"
+                                                 ? "border-orange-500 bg-orange-50"
+                                                 : "border-gray-200 hover:border-gray-300"
+                                         }`}
+                                     >
+                                         <div className="flex items-start gap-3">
+                                             <div className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                                                 paymentMethod === "COD" ? "border-orange-500 bg-orange-500" : "border-gray-300"
+                                             }`}>
+                                                 {paymentMethod === "COD" && <Check className="w-3 h-3 text-white" />}
+                                             </div>
+                                             <div className="flex-1">
+                                                 <p className="text-sm font-semibold text-gray-900">Cash on Delivery</p>
+                                                 <p className="text-xs text-gray-500 mt-0.5">Place the order now and pay when it arrives.</p>
+                                             </div>
+                                             <Banknote className="w-4 h-4 text-gray-400" />
+                                         </div>
+                                     </button>
+                                 )}
+                                 {checkoutSettings.payment.paypalEnabled && (
+                                     <button
+                                         type="button"
+                                         onClick={() => setPaymentMethod("PAYPAL")}
+                                         className={`w-full rounded-xl border px-4 py-3 text-left transition-colors ${
+                                             paymentMethod === "PAYPAL"
+                                                 ? "border-orange-500 bg-orange-50"
+                                                 : "border-gray-200 hover:border-gray-300"
+                                         }`}
+                                     >
+                                         <div className="flex items-start gap-3">
+                                             <div className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                                                 paymentMethod === "PAYPAL" ? "border-orange-500 bg-orange-500" : "border-gray-300"
+                                             }`}>
+                                                 {paymentMethod === "PAYPAL" && <Check className="w-3 h-3 text-white" />}
+                                             </div>
+                                             <div className="flex-1">
+                                                 <p className="text-sm font-semibold text-gray-900">PayPal</p>
+                                                 <p className="text-xs text-gray-500 mt-0.5">Secure international payments with PayPal</p>
+                                             </div>
+                                         </div>
+                                     </button>
+                                 )}
                             </div>
                         </div>
 
@@ -802,22 +868,18 @@ export default function CheckoutPage() {
                                         <span className="font-medium text-emerald-600">-&#8377;{discount.toLocaleString("en-IN")}</span>
                                     </div>
                                 )}
-                                <div className="flex items-center justify-between text-sm">
-                                    <span className="text-gray-500">Payment Method</span>
-                                    <span className="font-medium text-gray-900">
-                                        {paymentMethod === "COD" ? "Cash on Delivery" : "Online Payment"}
-                                    </span>
-                                </div>
-                                <div className="flex items-center justify-between text-sm">
-                                    <span className="text-gray-500">Shipping {codCharge > 0 && "(COD)"}</span>
-                                    {codCharge > 0 ? (
-                                        <div className="flex flex-col items-end">
-                                            <span className="font-medium text-gray-900">&#8377;{codCharge.toLocaleString("en-IN")}</span>
-                                        </div>
-                                    ) : (
-                                        <span className="font-medium text-emerald-600">Free</span>
-                                    )}
-                                </div>
+<div className="flex items-center justify-between text-sm">
+                                     <span className="text-gray-500">Payment Method</span>
+                                     <span className="font-medium text-gray-900">
+                                         {paymentMethod === "COD" ? "Cash on Delivery" : paymentMethod === "PAYPAL" ? "PayPal" : "Online Payment"}
+                                     </span>
+                                 </div>
+                                {transactionCharge > 0 && (
+                                    <div className="flex items-center justify-between text-sm">
+                                        <span className="text-gray-500">Transaction Charge</span>
+                                        <span className="font-medium text-gray-900">&#8377;{transactionCharge.toLocaleString("en-IN")}</span>
+                                    </div>
+                                )}
                                 <div className="border-t border-gray-100 pt-3 flex items-center justify-between">
                                     <span className="text-base font-semibold text-gray-900">Total</span>
                                     <span className="text-lg font-bold text-gray-900">&#8377;{total.toLocaleString("en-IN")}</span>
@@ -895,43 +957,142 @@ export default function CheckoutPage() {
                             </div>
 
                             {/* Pay button */}
-                            {isAuthenticated ? (
-                                <div className="px-4 pb-5 sm:px-6">
-                                    <button
-                                        onClick={handlePlaceOrder}
-                                        disabled={placing || !selectedAddressId}
-                                        className="w-full flex items-center justify-center gap-2 py-3.5 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-orange-500 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                                    >
-                                        {placing ? (
-                                            <>
-                                                <Loader2 className="w-4 h-4 animate-spin" /> Processing...
-                                            </>
-                                        ) : (
-                                            <>{paymentMethod === "COD" ? `Place COD Order` : `Pay ₹${total.toLocaleString("en-IN")}`}</>
-                                        )}
-                                    </button>
-                                    {!selectedAddressId && addresses.length === 0 && !showAddressForm && (
-                                        <p className="text-xs text-center text-red-500 mt-2">Please add an address to proceed</p>
-                                    )}
-                                </div>
-                            ) : (
-                                <div className="px-4 pb-5 sm:px-6">
-                                    <button
-                                        type="submit"
-                                        form="checkout-address-form"
-                                        disabled={formSubmitting || placing}
-                                        className="w-full flex items-center justify-center gap-2 py-3.5 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-orange-500 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                                    >
-                                        {formSubmitting || placing ? (
-                                            <>
-                                                <Loader2 className="w-4 h-4 animate-spin" /> Processing...
-                                            </>
-                                        ) : (
-                                            <>{paymentMethod === "COD" ? `Place COD Order` : `Continue to Payment`}</>
-                                        )}
-                                    </button>
-                                </div>
-                            )}
+{isAuthenticated ? (
+                                 <div className="px-4 pb-5 sm:px-6">
+                                     {paymentMethod === "PAYPAL" && checkoutSettings.payment.paypalEnabled && placedOrderId ? (
+                                         <PayPalScriptProvider options={{ clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "", currency: "INR" }}>
+                                             <p className="text-xs text-gray-500 text-center mb-3">Complete your payment with PayPal</p>
+                                             <PayPalButtons
+                                                 style={{ layout: 'horizontal', color: 'gold', shape: 'rect', label: 'paypal' }}
+                                                 createOrder={(data, actions) => {
+                                                     setIsPayPalAuthorizing(true);
+                                                     return actions.order.create({
+                                                         purchase_units: [{
+                                                             amount: {
+                                                                 currency_code: 'INR',
+                                                                 value: total.toFixed(2)
+                                                             }
+                                                         }]
+                                                     });
+                                                 }}
+                                                 onApprove={(data, actions) => {
+                                                     return actions.order!.capture().then(async () => {
+                                                         try {
+                                                             await api.post("/payments/verify-paypal", {
+                                                                 orderID: data.orderID,
+                                                                 payerID: data.payerID,
+                                                                 orderId: placedOrderId
+                                                             });
+                                                             setIsCompletingOrder(true);
+                                                             clearCart();
+                                                             router.replace(`/order-confirmation?status=success&paymentMethod=paypal`);
+                                                         } catch (err) {
+                                                             console.error('PayPal verification error:', err);
+                                                             setError('PayPal payment verification failed. Please try again.');
+                                                             setPlacing(false);
+                                                             setIsPayPalAuthorizing(false);
+                                                         }
+                                                     });
+                                                 }}
+                                                 onError={(err) => {
+                                                     console.error('PayPal Error:', err);
+                                                     setError('PayPal payment failed. Please try again.');
+                                                     setPlacing(false);
+                                                     setIsPayPalAuthorizing(false);
+                                                 }}
+                                             />
+                                         </PayPalScriptProvider>
+                                     ) : (
+                                         <button
+                                             onClick={handlePlaceOrder}
+                                             disabled={placing || !selectedAddressId}
+                                             className="w-full flex items-center justify-center gap-2 py-3.5 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-orange-500 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                         >
+                                             {placing ? (
+                                                 <>
+                                                     <Loader2 className="w-4 h-4 animate-spin" /> Processing...
+                                                 </>
+                                             ) : (
+                                                 <>
+                                                     {paymentMethod === "COD" ? `Place COD Order` :
+                                                     paymentMethod === "PAYPAL" ? `Place Order & Pay with PayPal` :
+                                                     `Pay ₹${total.toLocaleString("en-IN")}`}
+                                                 </>
+                                             )}
+                                         </button>
+                                     )}
+                                     {!selectedAddressId && addresses.length === 0 && !showAddressForm && (
+                                         <p className="text-xs text-center text-red-500 mt-2">Please add an address to proceed</p>
+                                     )}
+                                 </div>
+                             ) : (
+                                 <div className="px-4 pb-5 sm:px-6">
+                                     {paymentMethod === "PAYPAL" && checkoutSettings.payment.paypalEnabled && placedOrderId ? (
+                                         <PayPalScriptProvider options={{ clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "", currency: "INR" }}>
+                                             <p className="text-xs text-gray-500 text-center mb-3">Complete your payment with PayPal</p>
+                                             <PayPalButtons
+                                                 style={{ layout: 'horizontal', color: 'gold', shape: 'rect', label: 'paypal' }}
+                                                 createOrder={(data, actions) => {
+                                                     setIsPayPalAuthorizing(true);
+                                                     return actions.order.create({
+                                                         purchase_units: [{
+                                                             amount: {
+                                                                 currency_code: 'INR',
+                                                                 value: total.toFixed(2)
+                                                             }
+                                                         }]
+                                                     });
+                                                 }}
+                                                 onApprove={(data, actions) => {
+                                                     return actions.order!.capture().then(async () => {
+                                                         try {
+                                                             await api.post("/payments/guest/create-order-paypal", {
+                                                                 orderID: data.orderID,
+                                                                 payerID: data.payerID,
+                                                                 orderId: placedOrderId,
+                                                                 email: guestEmail.trim().toLowerCase()
+                                                             });
+                                                             setIsCompletingOrder(true);
+                                                             clearCart();
+                                                             router.replace(`/order-confirmation?status=success&paymentMethod=paypal`);
+                                                         } catch (err) {
+                                                             console.error('PayPal verification error:', err);
+                                                             setError('PayPal payment verification failed. Please try again.');
+                                                             setPlacing(false);
+                                                             setIsPayPalAuthorizing(false);
+                                                         }
+                                                     });
+                                                 }}
+                                                 onError={(err) => {
+                                                     console.error('PayPal Error:', err);
+                                                     setError('PayPal payment failed. Please try again.');
+                                                     setPlacing(false);
+                                                     setIsPayPalAuthorizing(false);
+                                                 }}
+                                             />
+                                         </PayPalScriptProvider>
+                                     ) : (
+                                         <button
+                                             type="submit"
+                                             form="checkout-address-form"
+                                             disabled={formSubmitting || placing}
+                                             className="w-full flex items-center justify-center gap-2 py-3.5 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-orange-500 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                         >
+                                             {formSubmitting || placing ? (
+                                                 <>
+                                                     <Loader2 className="w-4 h-4 animate-spin" /> Processing...
+                                                 </>
+                                             ) : (
+                                                 <>
+                                                     {paymentMethod === "COD" ? `Place COD Order` :
+                                                     paymentMethod === "PAYPAL" ? `Place Order & Pay with PayPal` :
+                                                     `Continue to Payment`}
+                                                 </>
+                                             )}
+                                         </button>
+                                     )}
+                                 </div>
+                             )}
                         </div>
                     </div>
                 </div>
