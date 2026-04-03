@@ -160,7 +160,7 @@ export default function CheckoutPage() {
     const [error, setError] = useState("");
     const [isCompletingOrder, setIsCompletingOrder] = useState(false);
     const [paymentMethod, setPaymentMethod] = useState<"ONLINE" | "PAYPAL" | "COD">("ONLINE");
-    const [isPayPalAuthorizing, setIsPayPalAuthorizing] = useState(false);
+    const [, setIsPayPalAuthorizing] = useState(false);
     const [placedOrderId, setPlacedOrderId] = useState<string | null>(null);
     const [checkoutSettings, setCheckoutSettings] = useState<CheckoutSettingsResponse["data"]>({
         payment: {
@@ -967,6 +967,7 @@ async function handlePlaceOrder() {
                                                  createOrder={(data, actions) => {
                                                      setIsPayPalAuthorizing(true);
                                                      return actions.order.create({
+                                                         intent: "CAPTURE",
                                                          purchase_units: [{
                                                              amount: {
                                                                  currency_code: 'INR',
@@ -1035,6 +1036,7 @@ async function handlePlaceOrder() {
                                                  createOrder={(data, actions) => {
                                                      setIsPayPalAuthorizing(true);
                                                      return actions.order.create({
+                                                         intent: "CAPTURE",
                                                          purchase_units: [{
                                                              amount: {
                                                                  currency_code: 'INR',
